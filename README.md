@@ -2,9 +2,9 @@
 
 > Steam sentiment intelligence powered by NVIDIA RAPIDS acceleration — overall rating can be misleading; recent weighted sentiment is the truth.
 
-**🔗 Live Demo:** _coming soon (Cloud Run public URL)_ · **🎬 Demo Video (≤3 min):** _coming soon_
+**🔗 Live Demo:** _coming soon (Cloud Run public URL)_ · **🎬 Demo Video (≤3 min):** _coming soon_ · **📊 Looker Studio:** [Interactive Dashboard](https://datastudio.google.com/reporting/46e5a8c2-ce33-4179-a456-5d68db932760) ([setup guide](docs/looker_studio.md))
 
-BuyOrWait is a purchase-decision tool built on **114M+ Steam reviews**. Steam's overall rating blends years-old sentiment with today's, hiding both games that have been fixed and games being review-bombed right now. BuyOrWait computes a playtime-weighted, 90-day half-life **Purchase Confidence Score** (🟢 Buy / 🟡 Wait / 🔴 Skip) and raises **Bombing Alerts** via rolling z-score anomaly detection. The entire pipeline runs unchanged on CPU (pandas) and GPU (`cudf.pandas` on an NVIDIA L4): **~14× faster end-to-end (38.3s → 2.7s)** — turning bombing alerts from a daily batch into an hourly refresh. Stack: Cloud Storage + BigQuery + Cloud Run (Streamlit) + NVIDIA RAPIDS.
+BuyOrWait is a purchase-decision tool built on **114M+ Steam reviews**. Steam's overall rating blends years-old sentiment with today's, hiding both games that have been fixed and games being review-bombed right now. BuyOrWait computes a playtime-weighted, 90-day half-life **Purchase Confidence Score** (🟢 Buy / 🟡 Wait / 🔴 Skip) and raises **Bombing Alerts** via rolling z-score anomaly detection — plus a **💬 Ask Gemini** tab that turns plain-English questions into BigQuery SQL. The entire pipeline runs unchanged on CPU (pandas) and GPU (`cudf.pandas` on an NVIDIA L4): **~14× faster end-to-end (38.3s → 2.7s)** — turning bombing alerts from a daily batch into an hourly refresh. Stack: Cloud Storage + BigQuery + Cloud Run (Streamlit) + Gemini (Vertex AI) + Looker Studio + NVIDIA RAPIDS.
 
 ## Architecture
 
@@ -16,10 +16,11 @@ Cloud Storage (Slim Parquet, no text columns, ~3-4GB)
 GCE g2-standard-8 (NVIDIA L4) — cudf.pandas batch processing
    Clean → Game×Day Aggregation → Weighted Confidence Score → Bombing Detection → Phase Timings
    ▼
-BigQuery: game_daily / game_scores / alerts / benchmark_results
-   ▼
-Cloud Run — Streamlit (Pure CPU, scales to zero)
+BigQuery: game_daily / game_scores / alerts / benchmark_results (+ v_* views for Looker)
+   ▼                                    ▼
+Cloud Run — Streamlit                 Looker Studio — exec dashboard
    🛒 Purchase Decision | 🚨 Bombing Alert | ⚡ Why GPU
+   💬 Ask Gemini — natural language → SQL via Gemini (Vertex AI), read-only guarded
 ```
 
 ## Benchmarks
@@ -49,7 +50,7 @@ Hardware: GCE g2-standard-8 (8 vCPUs / 32GB RAM / NVIDIA L4 24GB), Ubuntu 24.04 
 ## Reproduction
 
 ```bash
-# 0. Data: Kaggle "100 Million+ Steam Reviews" (~17GB CSV)
+# 0. Data: Kaggle "100 Million+ Steam Reviews" (~17GB CSV, reviews through 2023-10-30)
 #    https://www.kaggle.com/datasets/kieranpoc/steam-reviews
 kaggle datasets download -d kieranpoc/steam-reviews -p ~/raw --unzip
 
@@ -74,11 +75,19 @@ bq load --source_format=CSV --autodetect --replace steam_intel.benchmark_results
 # 4. App (local)
 cd app && pip install -r requirements.txt
 GCP_PROJECT=your_project_id streamlit run app.py
+# 💬 Ask Gemini tab: set GEMINI_API_KEY (Google AI Studio), or skip it and use
+# Vertex AI on Cloud Run (step 5) with no key at all.
 
 # 5. Deploy to Cloud Run (uses app/Dockerfile)
+# One-time, for the Ask Gemini tab via Vertex AI (key-less):
+#   gcloud services enable aiplatform.googleapis.com
+#   + grant the Cloud Run service account roles/aiplatform.user
 gcloud run deploy buyorwait --source app --region asia-southeast1 \
   --allow-unauthenticated --max-instances 2 \
   --set-env-vars GCP_PROJECT=your_project_id
+
+# 6. Looker Studio dashboard (optional, ~10 min) — see docs/looker_studio.md
+bq query --use_legacy_sql=false < docs/looker_views.sql
 ```
 
 The app queries only the aggregated BigQuery tables (a few thousand rows), never the 114M-row raw data — responses stay under 2 seconds on a scale-to-zero Cloud Run service.
@@ -87,6 +96,7 @@ The app queries only the aggregated BigQuery tables (a few thousand rows), never
 
 - **Purchase Confidence Score**: `score = Σ(wᵢ·voteᵢ)/Σ(wᵢ) × 100` where `wᵢ = log(1+playtime_at_review) × exp(−age_days/90)`. Playtime weight filters out "casual" review noise, and the 90-day half-life decay ensures recent sentiment dominates.
 - **Bombing Alert**: Daily negative review rate z-score (relative to 30-day rolling average) > 3, and daily review count > 2x of 30-day rolling average (dual conditions to avoid false positives on small sample sizes).
+- **Data window**: the Kaggle snapshot contains reviews **through 2023-10-30**. The pipeline anchors "today" to the newest review in the data, so "recent 90d" means the 90 days before the snapshot date. Wiring the Steam API for incremental ingestion would make it live — the ~14× GPU speedup is exactly what makes hourly full recalculation practical.
 
 ## Repository Layout
 
@@ -95,6 +105,7 @@ pipeline/     convert_to_parquet.py (CSV -> slim Parquet), pipeline.py (timed CP
 app/          Streamlit app + Dockerfile (Cloud Run)
 benchmarks/   benchmark_results.csv, nvidia-smi.png, hardware details
 notebooks/    eda_sample.ipynb — small-sample EDA behind the metric design
+docs/         app screenshots, Looker Studio setup guide + views SQL
 ```
 
 ## License
