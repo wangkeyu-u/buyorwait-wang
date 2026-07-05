@@ -1,0 +1,10 @@
+raw/
+slim_parquet/
+*.zip
+out_*.parquet
+__pycache__/
+.ipynb_checkpoints/
+kaggle.json
+*.key
+service-account*.json
+.env
