@@ -2,13 +2,15 @@
 
 > Steam sentiment intelligence powered by NVIDIA RAPIDS acceleration — overall rating can be misleading; recent weighted sentiment is the truth.
 
-Based on **100M+ Steam reviews**: playtime-weighted + 90-day half-life decay **Purchase Confidence Score**, and rolling z-score based **Bombing Alert**. GPU reduces the full recalculation time from CPU minutes to GPU seconds.
+**🔗 Live Demo:** _coming soon (Cloud Run public URL)_ · **🎬 Demo Video (≤3 min):** _coming soon_
+
+BuyOrWait is a purchase-decision tool built on **114M+ Steam reviews**. Steam's overall rating blends years-old sentiment with today's, hiding both games that have been fixed and games being review-bombed right now. BuyOrWait computes a playtime-weighted, 90-day half-life **Purchase Confidence Score** (🟢 Buy / 🟡 Wait / 🔴 Skip) and raises **Bombing Alerts** via rolling z-score anomaly detection. The entire pipeline runs unchanged on CPU (pandas) and GPU (`cudf.pandas` on an NVIDIA L4): **~14× faster end-to-end (38.3s → 2.7s)** — turning bombing alerts from a daily batch into an hourly refresh. Stack: Cloud Storage + BigQuery + Cloud Run (Streamlit) + NVIDIA RAPIDS.
 
 ## Architecture
 
 ```
-Kaggle (100M reviews, 17GB)
-   ▼ Direct download via aria2 + convert_to_parquet.py
+Kaggle (100M+ reviews, 17GB CSV)
+   ▼ kaggle CLI / aria2 download + convert_to_parquet.py
 Cloud Storage (Slim Parquet, no text columns, ~3-4GB)
    ▼
 GCE g2-standard-8 (NVIDIA L4) — cudf.pandas batch processing
@@ -20,42 +22,83 @@ Cloud Run — Streamlit (Pure CPU, scales to zero)
    🛒 Purchase Decision | 🚨 Bombing Alert | ⚡ Why GPU
 ```
 
-## Benchmarks (Same g2-standard-8 instance: 8 vCPUs vs L4 GPU, zero code changes)
+## Benchmarks
 
-<!-- Fill in the figures from benchmark_results.csv after running H7-9 -->
+Same GCE `g2-standard-8` instance, dual run over **114,381,811 rows**: 8 vCPUs (`pandas`) vs NVIDIA L4 (`cudf.pandas`), **zero code changes**. Raw timings: [benchmarks/benchmark_results.csv](benchmarks/benchmark_results.csv).
 
 | Phase | pandas (CPU) | cudf.pandas (L4) | Speedup |
 |---|---|---|---|
 | read_parquet | 1.69s | 0.73s | 2.3x |
-| clean_cast | 8.97s | 0.33s | 27.2x |
-| daily_groupby | 11.44s | 0.32s | 35.8x |
-| weighted_score | 8.69s | 0.74s | 11.7x |
-| bomb_detect | 4.82s | 0.16s | 30.1x |
-| **end_to_end** | **38.32s** | **2.75s** | **13.9x** |
+| clean_cast | 8.97s | 0.33s | 26.9x |
+| daily_groupby | 11.44s | 0.32s | 35.7x |
+| weighted_score | 8.69s | 0.74s | 11.8x |
+| bomb_detect | 4.82s | 0.16s | 30.7x |
+| write_outputs | 2.72s | 0.47s | 5.8x |
+| **end_to_end** | **38.32s** | **2.75s** | **~14x** |
 
-Hardware: GCE g2-standard-8 (8 vCPUs / 32GB RAM / NVIDIA L4 24GB), see `benchmarks/` for `nvidia-smi` screenshot.
+Hardware: GCE g2-standard-8 (8 vCPUs / 32GB RAM / NVIDIA L4 24GB), Ubuntu 24.04 Deep Learning Image, CUDA 12.x.
+
+![nvidia-smi on the GCE L4 instance during the GPU run](benchmarks/nvidia-smi.png)
+
+## Screenshots
+
+![Purchase Decision tab](docs/Purchasedecision.png)
+![Bombing Alert tab](docs/BombingAlert.png)
+![Why GPU tab](docs/WhyGPU.png)
 
 ## Reproduction
 
 ```bash
-# 1. Data (On GPU VM)
-python pipeline/convert_to_parquet.py        # Print column names → Edit COLS → Uncomment convert() and rerun
+# 0. Data: Kaggle "100 Million+ Steam Reviews" (~17GB CSV)
+#    https://www.kaggle.com/datasets/kieranpoc/steam-reviews
+kaggle datasets download -d kieranpoc/steam-reviews -p ~/raw --unzip
 
-# 2. Run Benchmarks (Same Machine)
-python pipeline/pipeline.py cpu
-python -m cudf.pandas pipeline/pipeline.py gpu
+# 1. Raw CSV -> Slim Parquet (drops review text, 17GB -> ~3-4GB)
+#    First run prints column names; verify the COLS mapping,
+#    uncomment convert() at the bottom, then rerun.
+python pipeline/convert_to_parquet.py
 
-# 3. Import Results into BigQuery (Tables: steam_intel.game_daily / game_scores / alerts / benchmark_results)
-#    Refer to commands in "48-Hour Sprint Guide" H9-12
+# 2. Benchmarks — same machine, zero code change
+python pipeline/pipeline.py cpu                    # pandas baseline
+python -m cudf.pandas pipeline/pipeline.py gpu     # RAPIDS on L4
+# No GPU at hand? Verify the CPU path on a subset in ~1 minute:
+MAX_FILES=3 python pipeline/pipeline.py cpu
 
-# 4. App
+# 3. Load results into BigQuery
+bq mk --location=asia-southeast1 -d steam_intel
+bq load --source_format=PARQUET --replace steam_intel.game_daily  out_game_daily.parquet
+bq load --source_format=PARQUET --replace steam_intel.game_scores out_game_scores.parquet
+bq load --source_format=PARQUET --replace steam_intel.alerts      out_alerts.parquet
+bq load --source_format=CSV --autodetect --replace steam_intel.benchmark_results benchmark_results.csv
+
+# 4. App (local)
 cd app && pip install -r requirements.txt
 GCP_PROJECT=your_project_id streamlit run app.py
+
+# 5. Deploy to Cloud Run (uses app/Dockerfile)
+gcloud run deploy buyorwait --source app --region asia-southeast1 \
+  --allow-unauthenticated --max-instances 2 \
+  --set-env-vars GCP_PROJECT=your_project_id
 ```
+
+The app queries only the aggregated BigQuery tables (a few thousand rows), never the 114M-row raw data — responses stay under 2 seconds on a scale-to-zero Cloud Run service.
 
 ## Metric Definitions
 
 - **Purchase Confidence Score**: `score = Σ(wᵢ·voteᵢ)/Σ(wᵢ) × 100` where `wᵢ = log(1+playtime_at_review) × exp(−age_days/90)`. Playtime weight filters out "casual" review noise, and the 90-day half-life decay ensures recent sentiment dominates.
 - **Bombing Alert**: Daily negative review rate z-score (relative to 30-day rolling average) > 3, and daily review count > 2x of 30-day rolling average (dual conditions to avoid false positives on small sample sizes).
+
+## Repository Layout
+
+```
+pipeline/     convert_to_parquet.py (CSV -> slim Parquet), pipeline.py (timed CPU/GPU pipeline)
+app/          Streamlit app + Dockerfile (Cloud Run)
+benchmarks/   benchmark_results.csv, nvidia-smi.png, hardware details
+notebooks/    eda_sample.ipynb — small-sample EDA behind the metric design
+```
+
+## License
+
+[MIT](LICENSE)
 
 Data Source: Kaggle Steam Reviews (all sourced from public Steam APIs).

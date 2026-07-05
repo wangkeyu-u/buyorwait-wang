@@ -9,16 +9,16 @@ The pipeline processes **114,381,811** Steam review records on the same Google C
 | Phase | pandas (CPU) | cudf.pandas (L4 GPU) | Speedup |
 | :--- | :---: | :---: | :---: |
 | `read_parquet` | 1.69s | 0.73s | 2.3x |
-| `clean_cast` | 8.97s | 0.33s | 27.2x |
-| `daily_groupby` | 11.44s | 0.32s | 35.8x |
-| `weighted_score` | 8.69s | 0.74s | 11.7x |
-| `bomb_detect` | 4.82s | 0.16s | 30.1x |
+| `clean_cast` | 8.97s | 0.33s | 26.9x |
+| `daily_groupby` | 11.44s | 0.32s | 35.7x |
+| `weighted_score` | 8.69s | 0.74s | 11.8x |
+| `bomb_detect` | 4.82s | 0.16s | 30.7x |
 | `write_outputs` | 2.72s | 0.47s | 5.8x |
-| **`end_to_end`** | **38.32s** | **2.75s** | **13.9x** |
+| **`end_to_end`** | **38.32s** | **2.75s** | **~14x** |
 
 ## Contents of This Directory
 
-- [benchmark_results.csv](file:///E:/project/steam_commit/buyorwait/benchmarks/benchmark_results.csv): Raw timestamped output appended by `pipeline.py` during CPU and GPU runs.
+- [benchmark_results.csv](benchmark_results.csv): Raw timestamped output appended by `pipeline.py` during CPU and GPU runs.
 - `nvidia-smi.png`: Screenshot verifying GPU usage on the GCE L4 machine (concrete proof of GCP × NVIDIA integration).
 
 ## Hardware Specifications

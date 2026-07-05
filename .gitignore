@@ -8,3 +8,4 @@ kaggle.json
 *.key
 service-account*.json
 .env
+CLAUDE.md
