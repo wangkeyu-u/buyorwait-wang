@@ -1,3 +1,24 @@
+# BuyOrWait 🎮 — 买还是等？/ To Buy or Not to Buy
+
+> Steam 游戏评价情报 —— 1.14 亿条评测，游戏时长加权 + 90 天半衰期购买信心指数，差评轰炸预警，NVIDIA RAPIDS GPU 加速 14 倍。
+>
+> Steam sentiment intelligence — 114M+ reviews, playtime-weighted 90-day half-life Purchase Confidence Score, bombing alerts, NVIDIA RAPIDS 14× GPU speedup.
+
+[![Data](https://img.shields.io/badge/reviews-114M%2B-blue)]()
+[![GPU](https://img.shields.io/badge/GPU%20Speedup-14%C3%97-brightgreen)]()
+[![Stack](https://img.shields.io/badge/stack-GCP%20%2B%20BigQuery%20%2B%20RAPIDS-orange)]()
+[![Live](https://img.shields.io/badge/demo-live-success)](https://buyorwait-1047454501331.asia-southeast1.run.app)
+
+---
+
+## 项目简介（中文）
+
+BuyOrWait 是一个基于 **1.14 亿条 Steam 评测**的购买决策工具。Steam 的总体评分把几年前和今天的评价混在一起——修复了的游戏评分虚低，正在被差评轰炸的游戏评分虚高。BuyOrWait 计算游戏时长加权、90 天半衰期的**购买信心指数**（🟢 买 / 🟡 等 / 🔴 跳），并通过滚动 z-score 异常检测发出**差评轰炸预警**。还包含「💬 Ask Gemini」功能，把自然语言问题转成 BigQuery SQL。整条管线在 CPU（pandas）和 GPU（`cudf.pandas` on L4）上零代码切换运行，**端到端加速约 14 倍（38.3s → 2.7s）**。
+
+技术栈：Cloud Storage + BigQuery + Cloud Run (Streamlit) + Gemini (Vertex AI) + Looker Studio + NVIDIA RAPIDS。
+
+---
+
 # BuyOrWait 🎮 — To Buy or Not to Buy
 
 > Steam sentiment intelligence powered by NVIDIA RAPIDS acceleration — overall rating can be misleading; recent weighted sentiment is the truth.
