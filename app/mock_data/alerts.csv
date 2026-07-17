@@ -1,0 +1,5 @@
+game_name,appid,alert_date,negative_rate,rolling_30d_negative_rate,z_score,review_volume,volume_multiplier,severity,possible_reason
+Dragon's Dogma 2,2054970,2026-06-22,0.69,0.45,5.8,4360,4.9,Critical,performance and monetization backlash
+Helldivers 2,553850,2026-06-12,0.45,0.29,3.7,3842,2.8,High,policy change backlash
+Cities: Skylines II,949230,2026-06-24,0.55,0.43,2.9,1004,1.9,Medium,patch stability complaints
+Dragon's Dogma 2,2054970,2026-06-21,0.65,0.44,4.9,3188,3.8,High,performance and monetization backlash

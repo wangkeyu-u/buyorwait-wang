@@ -1,0 +1,6 @@
+game_name,appid,genre,review_count,last_updated,buy_confidence_score,recent_positive_rate,review_volume_30d,negative_rate_change,weighted_confidence_score,bombing_signal
+Hades II,1145350,Roguelike,154328,2026-07-03,88,0.91,23842,-0.03,89,Clear
+Cities: Skylines II,949230,Simulation,90214,2026-07-03,46,0.48,18042,0.18,44,Watch
+Helldivers 2,553850,Co-op Shooter,512904,2026-07-03,63,0.66,42918,0.09,61,Elevated
+Stardew Valley,413150,Life Sim,701882,2026-07-03,94,0.96,18804,-0.01,95,Clear
+Dragon's Dogma 2,2054970,Action RPG,84512,2026-07-03,39,0.42,15672,0.24,37,Critical

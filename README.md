@@ -25,7 +25,9 @@ BuyOrWait 是一个基于 **1.14 亿条 Steam 评测**的购买决策工具。St
 
 **🔗 Live Demo:** [buyorwait-1047454501331.asia-southeast1.run.app](https://buyorwait-1047454501331.asia-southeast1.run.app) · **🎬 Demo Video (≤3 min):** _coming soon_ · **📊 Looker Studio:** [Interactive Dashboard](https://datastudio.google.com/reporting/46e5a8c2-ce33-4179-a456-5d68db932760) ([setup guide](docs/looker_studio.md))
 
-BuyOrWait is a purchase-decision tool built on **114M+ Steam reviews**. Steam's overall rating blends years-old sentiment with today's, hiding both games that have been fixed and games being review-bombed right now. BuyOrWait computes a playtime-weighted, 90-day half-life **Purchase Confidence Score** (🟢 Buy / 🟡 Wait / 🔴 Skip) and raises **Bombing Alerts** via rolling z-score anomaly detection — plus a **💬 Ask Gemini** tab that turns plain-English questions into BigQuery SQL. The entire pipeline runs unchanged on CPU (pandas) and GPU (`cudf.pandas` on an NVIDIA L4): **~14× faster end-to-end (38.3s → 2.7s)** — turning bombing alerts from a daily batch into an hourly refresh. Stack: Cloud Storage + BigQuery + Cloud Run (Streamlit) + Gemini (Vertex AI) + Looker Studio + NVIDIA RAPIDS.
+BuyOrWait is a purchase-decision tool built on **114M+ Steam reviews**. Steam's overall rating blends years-old sentiment with today's, hiding both games that have been fixed and games being review-bombed right now. BuyOrWait computes a playtime-weighted, 90-day half-life **Purchase Confidence Score** (🟢 Buy / 🟡 Wait / 🔴 Skip) and raises **Bombing Alerts** via rolling z-score anomaly detection — plus an **Ask AI** experience that turns plain-English questions into guarded BigQuery SQL. The entire pipeline runs unchanged on CPU (pandas) and GPU (`cudf.pandas` on an NVIDIA L4): **~14× faster end-to-end (38.3s → 2.7s)** — turning bombing alerts from a daily batch into an hourly refresh. Stack: Cloud Storage + BigQuery + Cloud Run (Streamlit) + Gemini (Vertex AI) + Looker Studio + NVIDIA RAPIDS.
+
+The frontend is an immersive 3D product experience rather than a dashboard-first shell: a full-viewport game decision engine, cursor parallax, layered game imagery, glass navigation, interactive decision cards, and glass/jelly Plotly surfaces. All product pages remain directly reachable from the home screen.
 
 ## Architecture
 
@@ -96,6 +98,8 @@ bq load --source_format=CSV --autodetect --replace steam_intel.benchmark_results
 # 4. App (local)
 cd app && pip install -r requirements.txt
 GCP_PROJECT=your_project_id streamlit run app.py
+# Local visual demo without GCP credentials:
+BUYORWAIT_DATA_MODE=demo streamlit run app.py
 # 💬 Ask Gemini tab: set GEMINI_API_KEY (Google AI Studio), or skip it and use
 # Vertex AI on Cloud Run (step 5) with no key at all.
 
