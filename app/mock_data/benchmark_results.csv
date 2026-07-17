@@ -1,0 +1,7 @@
+stage,data_scale,pandas_cpu_time,cudf_gpu_time,speedup
+Read Parquet,100M reviews,18,4,4.5
+Clean + Type Conversion,100M reviews,26,6,4.3
+Groupby Daily Aggregation,game x day windows,44,7,6.3
+Weighted Score Calculation,rolling 30d features,31,5,6.2
+Rolling Window Bombing Detection,anomaly windows,53,8,6.6
+End-to-end,100M+ reviews,172,30,5.7
