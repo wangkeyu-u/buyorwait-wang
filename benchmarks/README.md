@@ -1,6 +1,6 @@
-# Benchmarks ⚡
+# Upstream benchmark record
 
-This directory contains the dual-run benchmark results comparing CPU vs. GPU data processing pipelines for BuyOrWait.
+These files were inherited from [hypoxic127/buyorwait](https://github.com/hypoxic127/buyorwait). They report an upstream CPU/GPU run; this fork has not independently reproduced the measurement. The CSV and hardware screenshot remain unchanged.
 
 ## Summary of Results
 
